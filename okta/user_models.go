@@ -142,6 +142,8 @@ type UserProfile struct {
 	State             string `json:"state"`
 	ZipCode           string `json:"zipCode"`
 	CountryCode       string `json:"countryCode"`
+	Manager           string `json:"manager"`
+	ManagerID         string `json:"managerId"`
 }
 
 // UserCredentials represents the credentials object in Okta.
