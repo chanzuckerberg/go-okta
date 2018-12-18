@@ -3,6 +3,7 @@ package okta
 import (
 	"context"
 	"fmt"
+	"net/url"
 )
 
 // GroupsService is the service providing access to the Groups Resource in the Okta API
@@ -53,6 +54,65 @@ func (s *GroupsService) GetByID(ctx context.Context, id string) (*Group, *Respon
 
 	return groupOut, resp, nil
 
+}
+
+// List fetches a list of all groups.
+// nameSearch and filter are mutually exclusive. In either case pagination is disabled.
+//
+// https://developer.okta.com/docs/api/resources/groups#list-groups
+func (s *GroupsService) List(ctx context.Context) ([]*Group, *Response, error) {
+	ctx = context.WithValue(ctx, rateLimitCategoryCtxKey, rateLimitGroupsCreateListCategory)
+
+	path := fmt.Sprintf("groups?limit=%d", 100)
+	var groupAcc []*Group
+
+	return s.listPaginated(ctx, path, groupAcc)
+}
+
+// ListSearchByName fetches a list of all groups whose name start with a given string.
+// nameSearch and filter are mutually exclusive. In either case pagination is disabled.
+//
+// https://developer.okta.com/docs/api/resources/groups#search-groups
+func (s *GroupsService) ListSearchByName(ctx context.Context, partialName string) ([]*Group, *Response, error) {
+	ctx = context.WithValue(ctx, rateLimitCategoryCtxKey, rateLimitGroupsCreateListCategory)
+
+	path := fmt.Sprintf("groups?limit=%d&q=%s", 100, partialName)
+	var groupAcc []*Group
+
+	return s.listPaginated(ctx, path, groupAcc)
+}
+
+// ListFilter fetches a list of all groups who match a given filter.
+// nameSearch and filter are mutually exclusive. In either case pagination is disabled.
+//
+// https://developer.okta.com/docs/api/resources/groups#filters
+func (s *GroupsService) ListFilter(ctx context.Context, filter string) ([]*Group, *Response, error) {
+	ctx = context.WithValue(ctx, rateLimitCategoryCtxKey, rateLimitGroupsCreateListCategory)
+
+	path := fmt.Sprintf("groups?limit=%d&filter=%s", 100, url.QueryEscape(filter))
+	var groupAcc []*Group
+
+	return s.listPaginated(ctx, path, groupAcc)
+}
+
+func (s *GroupsService) listPaginated(ctx context.Context, path string, acc []*Group) ([]*Group, *Response, error) {
+	req, err := s.client.NewRequest("GET", path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var groups []*Group
+	resp, err := s.client.Do(ctx, req, &groups)
+	if err != nil {
+		return nil, nil, err
+	}
+	acc = append(acc, groups...)
+
+	if len(resp.Pagination.Next) == 0 {
+		return acc, resp, nil
+	}
+
+	return s.listPaginated(ctx, resp.Pagination.Next, acc)
 }
 
 // Add creates a new group.
@@ -142,4 +202,36 @@ func (s *GroupsService) Remove(ctx context.Context, id string) (*Response, error
 	}
 
 	return resp, nil
+}
+
+// ListMembers fetches the users who are members of the given group.
+//
+// https://developer.okta.com/docs/api/resources/groups#list-group-members
+func (s *GroupsService) ListMembers(ctx context.Context, id string) ([]*User, *Response, error) {
+	ctx = context.WithValue(ctx, rateLimitCategoryCtxKey, rateLimitCoreCategory)
+
+	path := fmt.Sprintf("groups/%s/users?limit=%d", id, 200)
+	var acc []*User
+
+	return s.listMembersPaginated(ctx, path, acc)
+}
+
+func (s *GroupsService) listMembersPaginated(ctx context.Context, path string, acc []*User) ([]*User, *Response, error) {
+	req, err := s.client.NewRequest("GET", path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var users []*User
+	resp, err := s.client.Do(ctx, req, &users)
+	if err != nil {
+		return nil, nil, err
+	}
+	acc = append(acc, users...)
+
+	if len(resp.Pagination.Next) == 0 {
+		return acc, resp, nil
+	}
+
+	return s.listMembersPaginated(ctx, resp.Pagination.Next, acc)
 }
