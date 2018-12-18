@@ -76,7 +76,7 @@ func (s *GroupsService) List(ctx context.Context) ([]*Group, *Response, error) {
 func (s *GroupsService) ListSearchByName(ctx context.Context, partialName string) ([]*Group, *Response, error) {
 	ctx = context.WithValue(ctx, rateLimitCategoryCtxKey, rateLimitGroupsCreateListCategory)
 
-	path := fmt.Sprintf("groups?limit=%d&q=%s", 100, partialName)
+	path := fmt.Sprintf("groups?limit=%d&q=%s", 100, url.QueryEscape(partialName))
 	var groupAcc []*Group
 
 	return s.listPaginated(ctx, path, groupAcc)
