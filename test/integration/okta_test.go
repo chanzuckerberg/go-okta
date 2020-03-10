@@ -16,10 +16,30 @@ var (
 
 func init() {
 	apiKey := os.Getenv("OKTA_API_KEY")
-	baseURL := "https://czi.okta.com/api/v1/"
+	baseURL := os.Getenv("OKTA_API_BASE_URL")
 	client, err = okta.NewClient(apiKey, baseURL, nil)
 	if err != nil {
 		log.Fatalf("Couldn't create an Okta Client: %v", err)
+	}
+
+}
+
+func TestUsers(t *testing.T) {
+	userList, _, err := client.Users.List(context.Background())
+	if err != nil {
+		t.Fatalf("Users.List returned error: %v", err)
+	}
+	if len(userList) == 0 {
+		t.Fatalf("Users.List returned no groups. There should be at least one user all Okta accounts.")
+	}
+
+	filter := "status eq \"ACTIVE\""
+	userList, _, err = client.Users.ListFilter(context.Background(), filter)
+	if err != nil {
+		t.Fatalf("Users.ListFilter(%q) returned error: %v", err, filter)
+	}
+	if len(userList) == 0 {
+		t.Fatalf("Users.ListFilter(%q) returned no users. There should be at least one active user, in all Okta accounts.", filter)
 	}
 
 }
